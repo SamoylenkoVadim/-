@@ -79,7 +79,7 @@ public class Connect {
 			PreparedStatement st = connection.prepareStatement("select * from SBT1 where EVENT_ID = 256021319621");
 			ResultSet r1 =st.executeQuery();
 				
-			r1.next();
+			r1.next(); //какое-то изменение
 			
 			    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
 			    DocumentBuilder builder = factory.newDocumentBuilder();
