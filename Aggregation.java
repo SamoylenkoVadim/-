@@ -17,6 +17,8 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 public class Aggregation {
+	
+	
 
 	public static void main(String[] args) throws SQLException, ParserConfigurationException, SAXException, IOException {
 		
@@ -42,31 +44,22 @@ public class Aggregation {
 	    
 	    // тут будет функция по получению правила по обработке соощения из конфигов. допустим получили::
 	    
-	    String from = "BillingPayExecRq/CardAcctId/CustInfo/PersonInfo/PersonName/FirstName";
+	    //String from = "BillingPayExecRq/CardAcctId/CustInfo/PersonInfo/PersonName/FirstName";
+	    //String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = Номер водительского удостоверения/NameBS";
+	    String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite/NameVisible";
+	    
 	    String to 	= "PERSONS/FIRST_NAME";
 	    
 	    String [] argFrom 	= from.split("/");
 	    String [] argTo	 	= to.split("/");
-	    System.out.println(argFrom.length);
 	    
 	    Element eElement = (Element) doc.getElementsByTagName(argFrom[0]).item(0);
 	    
-	   /* eElement = (Element) eElement.getElementsByTagName(argFrom[1]).item(0);
-	    Element eElement = (Element) eElement.getElementsByTagName(argFrom[2]).item(0)getFirstChild().getTextContent();
-	    eElement = (Element) eElement.getElementsByTagName(argFrom[3]).item(0);
-	    eElement = (Element) eElement.getElementsByTagName(argFrom[4]).item(0);
-	    eElement = (Element) eElement.getElementsByTagName(argFrom[5]).item(0);*/
+	    StructureForRecursion obj = new StructureForRecursion();
 	    
-	    //System.out.println(eElement.getTextContent());
-	    //System.out.println(eElement.getFirstChild().getTextContent());
-	    
-	    eElement = downTo(eElement,argFrom,1);
-	    
-	    System.out.println(eElement.getTextContent());
-	   	//eElement = (Element) eElement.getElementsByTagName("CardAcctId").item(0);
-	    
-        
-        System.out.println("That is all");
+	    downTo(eElement,argFrom,1,obj);
+	    System.out.println(obj.vector.toString());
+	    System.out.println("That is all");
 
 	}
 	
@@ -87,16 +80,83 @@ public class Aggregation {
 		return null;
 	}
 	
-	private static Element downTo(Element eElement, String[] arg, int i){
-			
-		eElement = (Element) eElement.getElementsByTagName(arg[i]).item(0);
-		if (i < arg.length - 1)
-			eElement = downTo(eElement,arg,i+1);
-		return eElement;
-		
-	}
 	
+	
+		private static void downTo(Element eElement, String[] arg, int i, StructureForRecursion obj){
+		System.out.println(arg[i]);
+		
+			NodeList nList  = eElement.getElementsByTagName(arg[i]);
+			int lengthList = nList.getLength();
+			
+			for (int k = 0; k < lengthList; k++) {
+				eElement = (Element) nList.item(k);
+				if (i < arg.length - 1)
+				eElement = checkKey(eElement, arg[i+1],obj.flagForCheck);
+						if (obj.flagForCheck){
+							arg[i+1] = eElement.getNodeName();
+							obj.flagForCheck = false;
+						}
+
+					
+				if (i < arg.length - 1)
+						downTo(eElement, arg, i+1, obj);
+				else
+					obj.pullToArray(eElement.getTextContent());
+			}
+			return;
+		}
+		
+		
+		
+		private static Element checkKey(Element el, String str, boolean flag){
+			
+			int sep = str.indexOf("*");
+
+			if (sep > 0){
+				String nameCurrentNode = str.substring(0, str.indexOf("*"));
+				String nameCheckField = str.substring(str.indexOf("where ",sep) + 6,str.indexOf(" =",sep));
+				String value = str.substring(str.indexOf("= ") + 2, str.length());
+				
+				//System.out.println(el.getNodeName());
+				
+				NodeList nList  = el.getElementsByTagName(nameCurrentNode);
+				int lengthList = nList.getLength();
+				//System.out.println(lengthList);
+				for (int k = 0; k < lengthList; k++) {
+					el = (Element) nList.item(k);
+					//System.out.println(el.getElementsByTagName(nameCheckField).item(0).getTextContent());
+					
+					if (el.getElementsByTagName(nameCheckField).item(0).getTextContent() == value){
+						System.out.println(el.getNodeName());
+						flag = true;
+						return el;
+					}//(Element) el.getElementsByTagName().item(k);
+				}
+
+			}
+			
+			return el;
+		}
+		
 }
+
+/* eElement = (Element) eElement.getElementsByTagName(argFrom[1]).item(0);
+Element eElement = (Element) eElement.getElementsByTagName(argFrom[2]).item(0)getFirstChild().getTextContent();
+eElement = (Element) eElement.getElementsByTagName(argFrom[3]).item(0);
+eElement = (Element) eElement.getElementsByTagName(argFrom[4]).item(0);
+eElement = (Element) eElement.getElementsByTagName(argFrom[5]).item(0);*/
+
+//System.out.println(eElement.getTextContent());
+//System.out.println(eElement.getFirstChild().getTextContent());
+
+//eElement = downTo(eElement,argFrom,1,null);
+ // Element [] elements = downTo(eElement,argFrom,1, new Element [50],0);
+//System.out.println(argFrom[argFrom.length-1]);
+
+//System.out.println(elements[0].getTextContent());
+	//eElement = (Element) eElement.getElementsByTagName("CardAcctId").item(0);
+
+//eElement = (Element) eElement.getElementsByTagName(arg[i]).item(0);
 
 /* 
 for (int i = 0; i < children.getLength(); i++) {
@@ -138,4 +198,5 @@ System.out.println(one.getFirstChild().getTextContent());*/
 //System.out.println(eElement.getElementsByTagName("CardAcctId").item(0).getFirstChild().getNodeName());
 
 //System.out.println(nList.item(0).getNodeName());
+
 
