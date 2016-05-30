@@ -45,8 +45,9 @@ public class Aggregation {
 	    // тут будет функция по получению правила по обработке соощения из конфигов. допустим получили::
 	    
 	    //String from = "BillingPayExecRq/CardAcctId/CustInfo/PersonInfo/PersonName/FirstName";
-	    //String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = Номер водительского удостоверения/NameBS";
-	    String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite/NameVisible";
+	    String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = КБК/NameBS";
+	    //String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = КБК/AttributeLength/MinLength";
+	    //String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite/NameVisible";
 	    
 	    String to 	= "PERSONS/FIRST_NAME";
 	    
@@ -75,29 +76,21 @@ public class Aggregation {
 	}
 	
 	
-	private static String getValue(String[] arg){
-		
-		return null;
-	}
-	
-	
 	
 		private static void downTo(Element eElement, String[] arg, int i, StructureForRecursion obj){
-		System.out.println(arg[i]);
-		
+
+			if (arg[i].indexOf("*") != -1) {
+				obj = checkKey(eElement, arg[i], obj);
+				eElement = obj.eElement;
+				i++;
+			}
+			
 			NodeList nList  = eElement.getElementsByTagName(arg[i]);
 			int lengthList = nList.getLength();
 			
 			for (int k = 0; k < lengthList; k++) {
 				eElement = (Element) nList.item(k);
-				if (i < arg.length - 1)
-				eElement = checkKey(eElement, arg[i+1],obj.flagForCheck);
-						if (obj.flagForCheck){
-							arg[i+1] = eElement.getNodeName();
-							obj.flagForCheck = false;
-						}
-
-					
+				
 				if (i < arg.length - 1)
 						downTo(eElement, arg, i+1, obj);
 				else
@@ -108,35 +101,32 @@ public class Aggregation {
 		
 		
 		
-		private static Element checkKey(Element el, String str, boolean flag){
+		private static StructureForRecursion checkKey(Element el, String str, StructureForRecursion obj){
 			
 			int sep = str.indexOf("*");
+			obj.eElement = el;
 
-			if (sep > 0){
 				String nameCurrentNode = str.substring(0, str.indexOf("*"));
 				String nameCheckField = str.substring(str.indexOf("where ",sep) + 6,str.indexOf(" =",sep));
 				String value = str.substring(str.indexOf("= ") + 2, str.length());
+				obj.arg = nameCurrentNode;
 				
-				//System.out.println(el.getNodeName());
 				
 				NodeList nList  = el.getElementsByTagName(nameCurrentNode);
 				int lengthList = nList.getLength();
-				//System.out.println(lengthList);
 				for (int k = 0; k < lengthList; k++) {
 					el = (Element) nList.item(k);
-					//System.out.println(el.getElementsByTagName(nameCheckField).item(0).getTextContent());
-					
-					if (el.getElementsByTagName(nameCheckField).item(0).getTextContent() == value){
-						System.out.println(el.getNodeName());
-						flag = true;
-						return el;
-					}//(Element) el.getElementsByTagName().item(k);
+
+					if (el.getElementsByTagName(nameCheckField).item(0).getTextContent().equals(value)){
+
+						obj.eElement = el;
+						return obj;
+					}
 				}
 
+				return obj;
 			}
-			
-			return el;
-		}
+
 		
 }
 
@@ -198,5 +188,3 @@ System.out.println(one.getFirstChild().getTextContent());*/
 //System.out.println(eElement.getElementsByTagName("CardAcctId").item(0).getFirstChild().getNodeName());
 
 //System.out.println(nList.item(0).getNodeName());
-
-
