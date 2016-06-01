@@ -1,3 +1,4 @@
+
 import java.io.IOException;
 import java.io.StringReader;
 import java.sql.PreparedStatement;
@@ -26,73 +27,48 @@ public class Aggregation {
 		PreparedStatement stTo;
 		PreparedStatement stCfg;
 
-		st = connect.connectFrom.prepareStatement("select * from SBT1 where EVENT_ID = 256021319621");
-		//stTo = connect.connectTo.prepareStatement("insert into PERSONS (MSG_TYPE, LAST_NAME, FIRST_NAME, MIDDLE_NAME, CARD_NUM) values ('qqq', 5, 'eee', 'rrr', 08)");
-		//stTo.executeQuery();
+		st = connect.connectFrom.prepareStatement("select * from SBT1");
 		ResultSet r1 =st.executeQuery();
-		
-	
-		r1.next();
-	    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-	    DocumentBuilder builder = factory.newDocumentBuilder();
-	    InputSource is = new InputSource(new StringReader(r1.getString("EVENT_MSG")));
-	    Document doc = builder.parse(is);
-	    
-	    Node node = doc.getChildNodes().item(0);
-	    NodeList children = node.getChildNodes();
-	    
-	    NodeList nList = doc.getElementsByTagName("MSG_BODY");
-	    String MSG_TYPE = nList.item(0).getFirstChild().getNodeName();
-	    
-	    String request = "select * from CONFIGURATIONS where MSG_TYPE = '" + MSG_TYPE + "'";
-	    System.out.println(request+ "  ");
-	    stCfg = connect.connectCfg.prepareStatement(request);
-	    ResultSet cfg =stCfg.executeQuery();
-	    
-	    StructureForRecursion obj = new StructureForRecursion();
-	   
-	    while(cfg.next()){
-	    	
-	    	String from = cfg.getString("GO_FROM");
-		    String to 	= cfg.getString("GO_TO");
-		    String [] argFrom 	= from.split("/");
-		    String [] argTo	 	= to.split("/");
+			
+		while (r1.next()){
+			
+			boolean isReqKnown = false;
+			
+		    DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+		    DocumentBuilder builder = factory.newDocumentBuilder();
+		    InputSource is = new InputSource(new StringReader(r1.getString("EVENT_MSG")));
+		    Document doc = builder.parse(is);
 		    
-		    Element eElement = (Element) doc.getElementsByTagName(argFrom[0]).item(0);
+		    NodeList nList = doc.getElementsByTagName("MSG_BODY");
+		    String MSG_TYPE = nList.item(0).getFirstChild().getNodeName();
+		    
+		    String request = "select * from CONFIGURATIONS where MSG_TYPE = '" + MSG_TYPE + "'";
+		    System.out.println(request+ "  ");
+		    stCfg = connect.connectCfg.prepareStatement(request);
+		    ResultSet cfg =stCfg.executeQuery();
 
-		    downTo(eElement,argFrom,1,obj);
-		    
-		    //obj.prepareRow(argTo);
-		    
-		    //exportToDB(connect, obj.vector, argTo);
-		    
-		    //System.out.println(obj.vector.toString());
-		    System.out.print(obj.getArrayNodeNames());
-		    System.out.println(obj.getArrayText());
-	   }
-		    
-	   
-	    
-	    
-	    
+		    StructureForRecursion obj = new StructureForRecursion();
 
-	    
-	    // тут будет функция по получению правила по обработке соощения из конфигов. допустим получили::
-	    
-	    //String from = "BillingPayExecRq/CardAcctId/CustInfo/PersonInfo/PersonName/FirstName";
-	    //String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = КБК/NameBS";
-	    //String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = КБК/AttributeLength/MinLength";
-	    // String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite/NameVisible";
-	    
-	   // String to 	= "PERSONS/FIRST_NAME";
-	    
-	    
-	    
-	    
+				while(cfg.next()){
+					
+					isReqKnown = true;
+					
+			    	String from = cfg.getString("GO_FROM");
+				    String to 	= cfg.getString("GO_TO");
+				    String [] argFrom 	= from.split("/");
+				    String [] argTo	 	= to.split("/");
+				    
+				    Element eElement = (Element) doc.getElementsByTagName(argFrom[0]).item(0);
+				    downTo(eElement,argFrom,1,obj);
+				    obj.prepareRow(argTo);
+				    
+				    
+			    }
+				exportToDB(connect, obj, isReqKnown, MSG_TYPE);
+		}
 	    System.out.println("That is all");
-
-	}	
-		
+	}
+	
 		private static void downTo(Element eElement, String[] arg, int i, StructureForRecursion obj){
 
 			if (arg[i].indexOf("*") != -1) {
@@ -102,7 +78,7 @@ public class Aggregation {
 			
 			NodeList nList  = eElement.getElementsByTagName(arg[i]);
 			int lengthList = nList.getLength();
-			
+			//System.out.println(arg[i] + "   555  " + lengthList);
 			for (int k = 0; k < lengthList; k++) {
 				eElement = (Element) nList.item(k);
 				
@@ -136,23 +112,40 @@ public class Aggregation {
 				return el;
 			}
 		
-		private static void exportToDB(Connect connect, Vector<Element> vector, String[] argTo){
-			
-			String request = "insert into " + argTo[0] + " (";
-			for (int i = 1; i < argTo.length; i++)
-				request = request + argTo[i] + ", ";
+		private static void exportToDB(Connect connect, StructureForRecursion obj, boolean isReqKnown, String MSG_TYPE){
 			
 			PreparedStatement stTo;
-			/*try {
-				stTo = connect.connectTo.prepareStatement("insert into PERSONS (MSG_TYPE, LAST_NAME, FIRST_NAME, MIDDLE_NAME, CARD_NUM) values ('qqq', 5, 'eee', 'rrr', 08)");
-				stTo.executeQuery();
-			} catch (SQLException e) {
-				System.out.println("ExportToDB: Something happened.. Data did not record in the DB ");
-				e.printStackTrace();
-			}*/
+			try {
+					if (!isReqKnown){
+						stTo = connect.connectTo.prepareStatement("insert into UNKNOWN_REQ (REQUEST) values ('" + MSG_TYPE + "')");
+					   	stTo.executeQuery();
+					}
+					if (isReqKnown){
+						stTo = connect.connectTo.prepareStatement(obj.request.get(0)[1]);
+						System.out.println(obj.request.get(0)[1]);
+						stTo.executeQuery();
+					}
+		    } catch (SQLException e) {
+				
+		    	e.printStackTrace();
+			}
 
-
-			
 		}
 
 }
+//Node node = doc.getChildNodes().item(0);
+//NodeList children = node.getChildNodes();
+
+//stTo = connect.connectTo.prepareStatement("insert into PERSONS (MSG_TYPE, LAST_NAME, FIRST_NAME, MIDDLE_NAME, CARD_NUM) values ('qqq', 5, 'eee', 'rrr', 08)");
+//stTo.executeQuery();
+// тут будет функция по получению правила по обработке соощения из конфигов. допустим получили::
+
+//String from = "BillingPayExecRq/CardAcctId/CustInfo/PersonInfo/PersonName/FirstName";
+//String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = КБК/NameBS";
+//String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*where NameVisible = КБК/AttributeLength/MinLength";
+// String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite/NameVisible";
+
+// String to 	= "PERSONS/FIRST_NAME";
+
+
+
