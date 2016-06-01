@@ -18,7 +18,10 @@ import org.w3c.dom.Element;
 		
 		public String getArrayText(){
 			
-			return vText.toString();
+			String str = vText.toString(); 
+			vText.removeAllElements(); 
+			return str.substring(1, str.length()-1);
+			
 			
 		}
 		
@@ -27,24 +30,39 @@ import org.w3c.dom.Element;
 			return vNodeName.toString();
 			
 		}
-/*		
+	
 		public void prepareRow(String[] to){
-			boolean flag = false;
-			int i = 0;
-			String[] curr;
+
+			boolean flag = true;
+			String[] vArr = null;
 			
-			for (i = 0; i < request.capacity(); i++)
-				if (request.get(i)[0] == to[0]){
-					flag = true;
+			int i = 0;
+			for (i = 0; i < request.capacity(); i++){
+				vArr = request.get(i);
+				if (vArr[0].equals(to[0])){
+					flag = false;
 					break;
-				}
+				}				
+			}
+			
+			if (flag){
+				
+				String[] newArr = new String [2];
+				newArr[0] = to[0];
+				String newStr = "insert into "+ to[0] + " (" + to[1] + ") values ('"+ getArrayText() + "')"; 
+				newArr[1] = newStr;
+				request.add(newArr);
+				
+			}
+			if (!flag){
+				String str = vArr[i+1];
+				String newStr = str.substring(0, str.indexOf(") values")) + ", " + to[1] + ") values" + 
+									str.substring(str.indexOf(" ('"), str.indexOf("')")) + "', '" + getArrayText() + "')";
+				vArr[i+1] = newStr;
+			}
 					
 			
-			if (flag)
-				curr = request.get(i);
-				
-			
-		}*/
+		}
 		
 	
 	}
