@@ -54,6 +54,9 @@ public class Connect {
 			connectCfg = DriverManager.getConnection(
 					"jdbc:oracle:thin:@localhost:1521:SBTPRACTICE", "esblog_cfg",
 					"qwe123");
+			connectTo = DriverManager.getConnection(
+					"jdbc:oracle:thin:@localhost:1521:SBTPRACTICE", "esblog_new",
+					"qwe123");
 
 		} catch (SQLException e) {
 			System.out.println("Connection Failed! Check output console");
