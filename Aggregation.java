@@ -26,7 +26,7 @@ public class Aggregation {
 		PreparedStatement stTo;
 		PreparedStatement stCfg;
 
-		st = connect.connectFrom.prepareStatement("select * from SBT1 "); //where EVENT_ID = 256021319621");
+		st = connect.connectFrom.prepareStatement("select * from SBT1 where EVENT_ID = 256021319621");
 		ResultSet r1 =st.executeQuery();
 		//r1.next();
 		while (r1.next()){
@@ -48,23 +48,25 @@ public class Aggregation {
 		    cfg.next();
 		    StructureForRecursion obj = new StructureForRecursion();
 
-				while(cfg.next()){
+				//while(cfg.next()){
 					
 					isReqKnown = true;
-					//String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*item()/NameBS";
-			    	String from = cfg.getString("GO_FROM");
-				    String to 	= cfg.getString("GO_TO");
+					String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*item(1)/NameVisible";
+					String to = "PERSONS/LAST_NAME, AAA/FIRST_NAME";
+			    	//String from = cfg.getString("GO_FROM");
+				    //String to 	= cfg.getString("GO_TO");
 				    String [] argFrom 	= from.split("/");
-				    String [] argTo	 	= to.split("/");
-				    
+				    String [] argTo	 	= to.split(",");
+				    System.out.println(to);
 				    Element eElement = (Element) doc.getElementsByTagName(argFrom[0]).item(0);
+				    System.out.println(from);
 				    downTo(eElement,argFrom,1,obj);
 				    //obj.prepareRow(argTo);
 				    obj.setInserts(argTo);
 				   // System.out.println(obj.request.get(0)[1]);
 				    
 				    
-			   }
+			   //}
 				//exportToDB(connect, obj, isReqKnown, MSG_TYPE);
 		}
 	    System.out.println("That is all");
@@ -79,6 +81,12 @@ public class Aggregation {
 			
 			NodeList nList  = el.getElementsByTagName(arg[i]);
 			int lengthList = nList.getLength();
+			
+			if (lengthList == 0){
+				obj.pullToArray("null");
+				return;
+			}
+			
 			for (int k = 0; k < lengthList; k++) {
 				el = (Element) nList.item(k);
 				if (i < arg.length - 1)
@@ -123,12 +131,22 @@ public class Aggregation {
 			
 			NodeList nList  = el.getElementsByTagName(nameCurrentNode);
 			int lengthList = nList.getLength();
+
+			if (lengthList == 0){
+				obj.pullToArray("null");
+				return;
+			}
+			boolean found = false;
 			for (int k = 0; k < lengthList; k++) {
 				el = (Element) nList.item(k);
 				if (el.getElementsByTagName(nameCheckField).item(0).getTextContent().equals(value)){  //не предполагается, что есть больше одного
 					downTo(el,arg,i+1,obj);
+					found = true;
 				}
 			}
+			if (!found)
+				obj.pullToArray("null");
+			
 			return;
 		}
 		
@@ -168,6 +186,11 @@ public class Aggregation {
 			String nameCurrentNode = str.substring(0, str.indexOf("*"));
 			String subString = str.substring(str.indexOf("(") + 1, str.indexOf(")")).replaceAll(" ", "");
 			NodeList nList  = el.getElementsByTagName(nameCurrentNode);
+			if (nList.getLength() == 0){
+				obj.pullToArray("null");
+				return;
+			}
+			
 			el = (Element) nList.item(0);
 			
 			if (subString.indexOf(",") > 0){
