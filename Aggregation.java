@@ -1,4 +1,3 @@
-
 import java.io.IOException;
 import java.io.StringReader;
 import java.sql.PreparedStatement;
@@ -27,9 +26,9 @@ public class Aggregation {
 		PreparedStatement stTo;
 		PreparedStatement stCfg;
 
-		st = connect.connectFrom.prepareStatement("select * from SBT1");
+		st = connect.connectFrom.prepareStatement("select * from SBT1 "); //where EVENT_ID = 256021319621");
 		ResultSet r1 =st.executeQuery();
-			
+		//r1.next();
 		while (r1.next()){
 			
 			boolean isReqKnown = false;
@@ -46,13 +45,13 @@ public class Aggregation {
 		    System.out.println(request+ "  ");
 		    stCfg = connect.connectCfg.prepareStatement(request);
 		    ResultSet cfg =stCfg.executeQuery();
-
+		    cfg.next();
 		    StructureForRecursion obj = new StructureForRecursion();
 
 				while(cfg.next()){
 					
 					isReqKnown = true;
-					
+					//String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*item()/NameBS";
 			    	String from = cfg.getString("GO_FROM");
 				    String to 	= cfg.getString("GO_TO");
 				    String [] argFrom 	= from.split("/");
@@ -60,57 +59,134 @@ public class Aggregation {
 				    
 				    Element eElement = (Element) doc.getElementsByTagName(argFrom[0]).item(0);
 				    downTo(eElement,argFrom,1,obj);
-				    obj.prepareRow(argTo);
+				    //obj.prepareRow(argTo);
+				    obj.setInserts(argTo);
+				   // System.out.println(obj.request.get(0)[1]);
 				    
 				    
-			    }
-				exportToDB(connect, obj, isReqKnown, MSG_TYPE);
+			   }
+				//exportToDB(connect, obj, isReqKnown, MSG_TYPE);
 		}
 	    System.out.println("That is all");
 	}
 	
-		private static void downTo(Element eElement, String[] arg, int i, StructureForRecursion obj){
+		private static void downTo(Element el, String[] arg, int i, StructureForRecursion obj){
 
 			if (arg[i].indexOf("*") != -1) {
-				eElement = checkKey(eElement, arg[i]);
-				i++;
+				specialRule(el, arg, i, obj);
+				return;
 			}
 			
-			NodeList nList  = eElement.getElementsByTagName(arg[i]);
+			NodeList nList  = el.getElementsByTagName(arg[i]);
 			int lengthList = nList.getLength();
-			//System.out.println(arg[i] + "   555  " + lengthList);
 			for (int k = 0; k < lengthList; k++) {
-				eElement = (Element) nList.item(k);
-				
+				el = (Element) nList.item(k);
 				if (i < arg.length - 1)
-					downTo(eElement, arg, i+1, obj);
+					downTo(el, arg, i+1, obj);
 				else
-					obj.pullToArray(eElement);
+					obj.pullToArray(el.getTextContent());
 			}
 			return;
 		}
 		
 
-		private static Element checkKey(Element el, String str){
+		private static void specialRule(Element el, String[] arg, int i, StructureForRecursion obj){
 			
-			int sep = str.indexOf("*");
+			int sep = arg[i].indexOf("*");
 
-				String nameCurrentNode = str.substring(0, str.indexOf("*"));
-				String nameCheckField = str.substring(str.indexOf("where ",sep) + 6,str.indexOf(" =",sep));
-				String value = str.substring(str.indexOf("= ") + 2, str.length());
-				
-				NodeList nList  = el.getElementsByTagName(nameCurrentNode);
-				int lengthList = nList.getLength();
+			String ruleName = arg[i].substring(sep + 1, sep + 5);
+			
+			if (ruleName.indexOf("(")>0)
+				ruleName=ruleName.substring(0,ruleName.indexOf("("));
+			
+			switch (ruleName) {
+				case "wher":
+					ruleWhere(el, arg, i, obj);
+					break;
+				case "item":
+					ruleItem(el, arg, i, obj);
+					break;
+				case "subs":
+					ruleSubstring(el, arg, i, obj);
+					break;
+			}
+			
+		}
+		
+		private static void ruleWhere(Element el, String[] arg, int i, StructureForRecursion obj){
+			String str = arg[i];
+			int sep = arg[i].indexOf("*");
+			
+			String nameCurrentNode = str.substring(0, str.indexOf("*")).replaceAll(" ", "");
+			String nameCheckField = str.substring(str.indexOf("where ",sep) + 6,str.indexOf(" =",sep)).replaceAll(" ", "");
+			String value = str.substring(str.indexOf("= ") + 2, str.length());
+			
+			NodeList nList  = el.getElementsByTagName(nameCurrentNode);
+			int lengthList = nList.getLength();
+			for (int k = 0; k < lengthList; k++) {
+				el = (Element) nList.item(k);
+				if (el.getElementsByTagName(nameCheckField).item(0).getTextContent().equals(value)){  //не предполагается, что есть больше одного
+					downTo(el,arg,i+1,obj);
+				}
+			}
+			return;
+		}
+		
+		private static void ruleItem(Element el, String[] arg, int i, StructureForRecursion obj){
+			
+			String str = arg[i];
+			int sep = arg[i].indexOf("*");
+			int itemInt = 1;
+			
+			String nameCurrentNode = str.substring(0, str.indexOf("*"));
+			String itemString = str.substring(str.indexOf("(") + 1, str.indexOf(")")).replaceAll(" ", "");
+			if (itemString.length() != 0)
+				itemInt = Integer.parseInt(itemString);
+			NodeList nList  = el.getElementsByTagName(nameCurrentNode);
+			int lengthList = nList.getLength();
+			
+			if (itemString.length() != 0){
+				el = (Element) nList.item(itemInt - 1);
+				downTo(el,arg,i+1,obj);
+			}
+			
+			if (itemString.length() == 0){
 				for (int k = 0; k < lengthList; k++) {
 					el = (Element) nList.item(k);
-
-					if (el.getElementsByTagName(nameCheckField).item(0).getTextContent().equals(value)){
-						return el;
-					}
+					downTo(el,arg,i+1,obj);
 				}
-
-				return el;
 			}
+
+		}
+		
+		private static void ruleSubstring(Element el, String[] arg, int i, StructureForRecursion obj){ // применима только для конечных узлов
+			
+			String str = arg[i];
+			int sep = arg[i].indexOf("*");
+			int itemSub = 1;
+			
+			String nameCurrentNode = str.substring(0, str.indexOf("*"));
+			String subString = str.substring(str.indexOf("(") + 1, str.indexOf(")")).replaceAll(" ", "");
+			NodeList nList  = el.getElementsByTagName(nameCurrentNode);
+			el = (Element) nList.item(0);
+			
+			if (subString.indexOf(",") > 0){
+				
+				int subIntBegin = Integer.parseInt(subString.substring(0, subString.indexOf(",")));
+				int subIntLength = Integer.parseInt(subString.substring(subString.indexOf(",") + 1, subString.length()));
+				
+				obj.pullToArray(el.getTextContent().substring(subIntBegin - 1, subIntBegin+subIntLength));
+
+			}
+			
+			if (subString.indexOf(",") < 0){
+				
+				int subIntLength = Integer.parseInt(subString.substring(0, subString.length()));
+				obj.pullToArray(el.getTextContent().substring(0, subIntLength));
+
+			}		
+			
+		}
 		
 		private static void exportToDB(Connect connect, StructureForRecursion obj, boolean isReqKnown, String MSG_TYPE){
 			
