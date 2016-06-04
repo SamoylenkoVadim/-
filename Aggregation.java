@@ -26,9 +26,9 @@ public class Aggregation {
 		PreparedStatement stTo;
 		PreparedStatement stCfg;
 
-		st = connect.connectFrom.prepareStatement("select * from SBT1 where EVENT_ID = 256021319621");
+		st = connect.connectFrom.prepareStatement("select * from SBT1");// where EVENT_ID = 256021319621");
 		ResultSet r1 =st.executeQuery();
-		//r1.next();
+
 		while (r1.next()){
 			
 			boolean isReqKnown = false;
@@ -42,32 +42,30 @@ public class Aggregation {
 		    String MSG_TYPE = nList.item(0).getFirstChild().getNodeName();
 		    
 		    String request = "select * from CONFIGURATIONS where MSG_TYPE = '" + MSG_TYPE + "'";
-		    System.out.println(request+ "  ");
+		    //System.out.println(request+ "  ");
 		    stCfg = connect.connectCfg.prepareStatement(request);
 		    ResultSet cfg =stCfg.executeQuery();
-		    cfg.next();
+		    //cfg.next();
 		    StructureForRecursion obj = new StructureForRecursion();
 
-				//while(cfg.next()){
+				while(cfg.next()){
 					
 					isReqKnown = true;
-					String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*item(1)/NameVisible";
-					String to = "PERSONS/LAST_NAME, AAA/FIRST_NAME";
-			    	//String from = cfg.getString("GO_FROM");
-				    //String to 	= cfg.getString("GO_TO");
+
+			    	String from = cfg.getString("GO_FROM");
+				    String to 	= cfg.getString("GO_TO");
 				    String [] argFrom 	= from.split("/");
 				    String [] argTo	 	= to.split(",");
-				    System.out.println(to);
+				    //System.out.println(to);
 				    Element eElement = (Element) doc.getElementsByTagName(argFrom[0]).item(0);
-				    System.out.println(from);
+				   // System.out.println(from);
 				    downTo(eElement,argFrom,1,obj);
-				    //obj.prepareRow(argTo);
+
 				    obj.setInserts(argTo);
-				   // System.out.println(obj.request.get(0)[1]);
-				    
-				    
-			   //}
-				//exportToDB(connect, obj, isReqKnown, MSG_TYPE);
+				    //exportToDB(connect, obj);
+
+			   }
+				exportToDB(connect, obj);
 		}
 	    System.out.println("That is all");
 	}
@@ -198,40 +196,46 @@ public class Aggregation {
 				int subIntBegin = Integer.parseInt(subString.substring(0, subString.indexOf(",")));
 				int subIntLength = Integer.parseInt(subString.substring(subString.indexOf(",") + 1, subString.length()));
 				
-				obj.pullToArray(el.getTextContent().substring(subIntBegin - 1, subIntBegin+subIntLength));
+				if ((subIntBegin > el.getTextContent().length()) || (el.getTextContent().length() < subIntLength + subIntBegin)){
+					subIntBegin = 1;
+					subIntLength = el.getTextContent().length();
+				}
+
+				obj.pullToArray(el.getTextContent().substring(subIntBegin - 1, subIntBegin+subIntLength-1));
 
 			}
 			
 			if (subString.indexOf(",") < 0){
 				
 				int subIntLength = Integer.parseInt(subString.substring(0, subString.length()));
+				if (el.getTextContent().length() < subIntLength)
+					subIntLength = el.getTextContent().length();
 				obj.pullToArray(el.getTextContent().substring(0, subIntLength));
 
 			}		
 			
 		}
-		
-		private static void exportToDB(Connect connect, StructureForRecursion obj, boolean isReqKnown, String MSG_TYPE){
+
+		private static void exportToDB(Connect connect, StructureForRecursion obj){
 			
 			PreparedStatement stTo;
-			try {
-					if (!isReqKnown){
-						stTo = connect.connectTo.prepareStatement("insert into UNKNOWN_REQ (REQUEST) values ('" + MSG_TYPE + "')");
-					   	stTo.executeQuery();
-					}
-					if (isReqKnown){
-						stTo = connect.connectTo.prepareStatement(obj.request.get(0)[1]);
-						System.out.println(obj.request.get(0)[1]);
-						stTo.executeQuery();
+			try {	
+					for (int i = 0; i < obj.requests.capacity(); i++){
+						for (int j = 0; j < obj.requests.get(i).capacity(); j++){
+							stTo = connect.connectTo.prepareStatement(obj.requests.get(i).get(j));
+							System.out.println(obj.requests.get(i).get(j));
+							//stTo.executeQuery();
+						}
 					}
 		    } catch (SQLException e) {
-				
 		    	e.printStackTrace();
 			}
 
 		}
 
 }
+//String from = "BillingPayExecRq/RecipientRec/Requisites/Requisite*item()/NameVisible";
+//String to = "PERSONS/LAST_NAME, AAA/FIRST_NAME";
 //Node node = doc.getChildNodes().item(0);
 //NodeList children = node.getChildNodes();
 
