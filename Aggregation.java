@@ -28,6 +28,7 @@ public class Aggregation {
 
 		st = connect.connectFrom.prepareStatement("select * from SBT1");// where EVENT_ID = 256021319621");
 		ResultSet r1 =st.executeQuery();
+		StructureForRecursion obj = new StructureForRecursion();
 
 		while (r1.next()){
 			
@@ -46,8 +47,7 @@ public class Aggregation {
 		    stCfg = connect.connectCfg.prepareStatement(request);
 		    ResultSet cfg =stCfg.executeQuery();
 		    //cfg.next();
-		    StructureForRecursion obj = new StructureForRecursion();
-
+		    
 				while(cfg.next()){
 					
 					isReqKnown = true;
@@ -65,8 +65,9 @@ public class Aggregation {
 				    //exportToDB(connect, obj);
 
 			   }
-				exportToDB(connect, obj);
+				
 		}
+		exportToDB(connect, obj);
 	    System.out.println("That is all");
 	}
 	
@@ -161,6 +162,11 @@ public class Aggregation {
 			NodeList nList  = el.getElementsByTagName(nameCurrentNode);
 			int lengthList = nList.getLength();
 			
+			if (itemInt > lengthList){
+				obj.pullToArray("null");
+				return;
+			}
+				
 			if (itemString.length() != 0){
 				el = (Element) nList.item(itemInt - 1);
 				downTo(el,arg,i+1,obj);
@@ -224,7 +230,7 @@ public class Aggregation {
 						for (int j = 0; j < obj.requests.get(i).capacity(); j++){
 							stTo = connect.connectTo.prepareStatement(obj.requests.get(i).get(j));
 							System.out.println(obj.requests.get(i).get(j));
-							//stTo.executeQuery();
+							stTo.executeQuery();
 						}
 					}
 		    } catch (SQLException e) {
