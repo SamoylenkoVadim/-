@@ -7,53 +7,71 @@ import org.w3c.dom.Element;
 	
 		Vector<String> vNodeName	= new Vector<String>(0,1);
 		Vector<String> vText		= new Vector<String>(0,1);
-		Vector<String[]> request	= new Vector<String[]>(0,1);
-		Vector<String> inserts		= new Vector<String>(0,1);
-		Vector<Vector>	vector		= new Vector<Vector>(0,1);
+		//Vector<String[]> request	= new Vector<String[]>(0,1);
+		//Vector<String> inserts		= new Vector<String>(0,1);
+		Vector<Vector<String>> 	requests = new Vector<Vector<String>>(0,1);
 		String newStr 				= null;
+		String [] idStr			= new String[1000];
 	
 		public void pullToArray(String text){
 
 			 vText.addElement(text);
 			 
 		}
-		
-		public String getArrayText(){
-			
-			String str = vText.toString();
-			vText.removeAllElements(); 
-			return str.substring(1, str.length()-1);
-			
-			
-		}
-				
+					
 		
 		public void setInserts(String[] argTo){
-			
+						
 			for (int i = 0; i < argTo.length; i++){
+				
+				boolean found = false;
+				Vector<String> inserts = null;
+				
 				argTo[i] = argTo[i].replaceFirst(" ","");
 				String [] arrayTo = argTo[i].split("/");
 				
-				inserts(arrayTo);
-			}
-			
+				if (requests.capacity()==0){
+					
+					inserts = new Vector<String>(0,1);
+					inserts = formInserts(arrayTo, inserts);
+					requests.addElement(inserts);
+					
+				}else{				
+					for (int j = 0; i < requests.capacity(); j++){
+						if (requests.get(j).get(0).indexOf(arrayTo[0]) > 0){
+							inserts = new Vector<String>(0,1);
+							inserts = formInserts(arrayTo, requests.get(j));
+							requests.set(j, inserts);
+							found = true;
+							break;
+						}						
+					}
+					
+					if (!found){
+						inserts = new Vector<String>(0,1);
+						inserts = formInserts(arrayTo, inserts);
+						requests.addElement(inserts);
+					}
+				}
+			}	
 			vText.clear();
-			
 		}
 	
-		public void inserts(String[] to){
+		public Vector<String> formInserts(String[] to, Vector<String> inserts){
 			
 			String extraPoint = ", '";
-			
 			if (vText.isEmpty()){ // вообще такое не должно происходить, если случается, то это не правильно.
-				return;
+				return inserts;
 			}
+			
+			
 				
 			if (inserts.capacity() == 0){
 				newStr = "insert into "+ to[0] + " (" + to[1] + ") values ()";
 				extraPoint = "'";
 
 			}else{
+				newStr = inserts.get(0);
 				newStr = newStr.substring(0, newStr.indexOf(") values")) + ", " + to[1]  + newStr.substring(newStr.indexOf(") values"));	
 			}
 			
@@ -79,34 +97,41 @@ import org.w3c.dom.Element;
 				}
 
 			}
-			//------------------------------------------------------------
+			//--------------------------------------------------------------------------
 			
 			if (vText.capacity() > 1){
 				
-				if (inserts.capacity() > 0){
+				if (inserts.capacity() > 1){
 					for (int i = 0; i < inserts.capacity(); i++){
-						String currStr = inserts.get(i);	
-						currStr = newStr.substring(0, newStr.indexOf(")", newStr.indexOf("values"))) + extraPoint + vText.get(i) + "')";
+						String currStr = inserts.get(i);
+						currStr = currStr.substring(0, currStr.indexOf(") values")) + ", " + to[1]  + currStr.substring(currStr.indexOf(") values"));
+						currStr = currStr.substring(0, currStr.indexOf(")", currStr.indexOf("values"))) + extraPoint + vText.get(i) + "')";
 						//newStr = currStr;
 						inserts.set(i, currStr);
 					}
 				}
 				
-				if (inserts.capacity() == 0){
+				
+				if ((inserts.capacity() == 0)||(inserts.capacity() == 1)){
 					
 					for (int i = 0; i < vText.capacity(); i++){
 						String currStr = newStr.substring(0, newStr.indexOf(")", newStr.indexOf("values"))) + extraPoint + vText.get(i) + "')";
-						//newStr = currStr;
-						inserts.addElement(currStr);
+
+						if ((inserts.capacity() == 1)&&(i == 0))
+							inserts.set(0, currStr);
+						else
+							inserts.addElement(currStr);
 					}
 					
 				}
 				
 			}
-			vText.clear();
+
 			//vText.removeAllElements(); 
-			for (int i = 0; i < inserts.capacity(); i++)
-				System.out.println(inserts.get(i));
+			//for (int i = 0; i < inserts.capacity(); i++)
+				//System.out.println(inserts.get(i));
+			
+			return inserts;
 		}
 		
 	
